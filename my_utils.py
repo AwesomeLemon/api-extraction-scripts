@@ -6,6 +6,7 @@ from random import random
 from tensorflow.python.platform import gfile
 
 import tensorflow as tf
+import langid
 
 def clean_up_sentences(list_of_sentence_pairs):
     def clean_up(sentence_eng):
@@ -133,9 +134,10 @@ def parse_file_write_to_2_files(filename="data.txt", engfile="eng.txt", apifile=
                 break
             if line.startswith("*") or line.startswith("/"):
                 continue
-            if line in unwanted_comments:
-                api_line = f.readline().strip()  # we won't need it
+            if line in unwanted_comments or langid.classify(line)[0] != 'en':
+                api_line = f.readline() # we won't need it
                 continue
+
             cur_eng = line.split(" ")
             line = f.readline().strip()
             cur_api = line.split(" ")
