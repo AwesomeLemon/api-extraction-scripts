@@ -134,7 +134,7 @@ def parse_file_write_to_2_files(filename="data.txt", engfile="eng.txt", apifile=
                 break
             if line.startswith("*") or line.startswith("/"):
                 continue
-            if line in unwanted_comments or langid.classify(line)[0] != 'en':
+            if langid.classify(line)[0] != 'en':
                 api_line = f.readline() # we won't need it
                 continue
 
@@ -171,9 +171,9 @@ def write_all_train_data_to_files(english_desc, api_desc, engfile="eng.txt", api
 
 def parse_res_files_to_two_files(engfile="eng.txt", apifile="api.txt",
                                  eng_dev_file="eng_dev.txt", api_dev_file="api_dev.txt",
-                                 res_files=None, res_files_count=2):
+                                 res_files=None, res_files_count=2, res_files_first=1):
     if res_files is None:
-        res_files = ['/tmp/res' + str(i) + '.txt' for i in range(1, res_files_count + 1)]#['/tmp/res1.txt', '/tmp/res2.txt']
+        res_files = ['/tmp/res' + str(i) + '.txt' for i in range(res_files_first, res_files_count + 1)]#['/tmp/res1.txt', '/tmp/res2.txt']
 
     eng, api = parse_file_write_to_2_files(filename=res_files[0], ifoverwrite=True)
     # train, dev = separate_to_train_and_dev(list(zip(eng, api)))
@@ -227,12 +227,14 @@ def create_vocab(input_file, vocab_file, vocab_size):
 #     print api_desc
 
 
-def create_two_vocabs(eng='eng.txt', api='api.txt', eng_size=10000, api_size=10000):
-    create_vocab(eng, 'vocab{0}_test.from'.format(str(eng_size)), eng_size)
-    create_vocab(api, 'vocab{0}_test.to'.format(str(api_size)), api_size)
+def create_two_vocabs(eng='eng.txt', api='api.txt', eng_size=10000, api_size=10000, vocab_postfix = ''):
+    # create_vocab(eng, 'vocab{0}_test.from'.format(str(eng_size)), eng_size)
+    # create_vocab(api, 'vocab{0}_test.to'.format(str(api_size)), api_size)
+    create_vocab(eng, 'vocab' + str(eng_size) + '_test' + vocab_postfix + '.from', eng_size)
+    create_vocab(api, 'vocab' + str(api_size) + '_test' + vocab_postfix + '.to', api_size)
 if __name__ == "__main__":
-    parse_res_files_to_two_files('train1.eng', 'train1.api', 'test1.eng', 'test1.api', res_files_count=16)
-    create_two_vocabs('train1.eng', 'train1.api')
+    parse_res_files_to_two_files('train3.eng', 'train3.api', 'test3.eng', 'test3.api', res_files_count=21, res_files_first=17)
+    # create_two_vocabs('train2.eng', 'train2.api', vocab_postfix='engonly')
 
     # test_stuff()
     # parse_file_write_to_2_files("/tmp/res1.txt","eng_dev.txt", "api_dev.txt")
