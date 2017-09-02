@@ -116,11 +116,8 @@ def refactored_data_to_file(eng_top=10000, eng_skip=5, api_top=10000, api_skip=0
                 f.write(str(word) + " ")
             f.write("\n")
 
-
-# for Tensorflow:
-
-def parse_file_write_to_2_files(filename="data.txt", engfile="eng.txt", apifile="api.txt",
-                                ifcleanup=True, ifoverwrite=False):
+def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="api.txt",
+                              ifcleanup=True, ifoverwrite=False):
     english_desc = []
     api_desc = []
     unwanted_comments = [
@@ -175,15 +172,10 @@ def parse_res_files_to_two_files(engfile="eng.txt", apifile="api.txt",
     if res_files is None:
         res_files = ['/tmp/res' + str(i) + '.txt' for i in range(1, res_files_count + 1)]#['/tmp/res1.txt', '/tmp/res2.txt']
 
-    eng, api = parse_file_write_to_2_files(filename=res_files[0], ifoverwrite=True)
-    # train, dev = separate_to_train_and_dev(list(zip(eng, api)))
-    # eng_train, api_train = zip(*train)
-    # eng_dev, api_dev = zip(*dev)
-    # write_all_train_data_to_files(eng_train, api_train, engfile, apifile, ifoverwrite=True)
-    # write_all_train_data_to_files(eng_dev, api_dev, eng_dev_file, api_dev_file, ifoverwrite=True)
+    eng, api = parse_file_to_eng_and_api(filename=res_files[0], ifoverwrite=True)
     for res_file in res_files[1:]:
         print('parsing ' + res_file)
-        eng_new, api_new = parse_file_write_to_2_files(filename=res_file, ifoverwrite=False)
+        eng_new, api_new = parse_file_to_eng_and_api(filename=res_file, ifoverwrite=False)
         eng += eng_new
         api += api_new
 
@@ -218,14 +210,6 @@ def create_vocab(input_file, vocab_file, vocab_size):
         with gfile.GFile(vocab_file, mode="w") as vocab_file:
             for w in vocab_list:
                 vocab_file.write(w + "\n")
-
-# def test_stuff():
-#     english_desc = ["ab", "cd", "ab", "xy"]
-#     api_desc = ["da", "db", "da", "aa"]
-#     english_desc, api_desc = zip(*list(set(zip(english_desc, api_desc))))
-#     print english_desc
-#     print api_desc
-
 
 def create_two_vocabs(eng='eng.txt', api='api.txt', eng_size=10000, api_size=10000):
     create_vocab(eng, 'vocab{0}_test.from'.format(str(eng_size)), eng_size)
