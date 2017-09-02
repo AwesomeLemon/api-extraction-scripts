@@ -35,7 +35,8 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict):
         clean_up_eng(sentence_pair[0])
         clean_up_api(sentence_pair[1])
     # list_of_sentences = [clean_up_eng(sentence) for sentence in list_of_sentences]
-    list_of_sentence_pairs[:] = [(eng, api) for (eng, api) in list_of_sentence_pairs if len(eng) > 0]
+    list_of_sentence_pairs[:] = [(eng, api) for (eng, api) in list_of_sentence_pairs if len(eng) > 0 and len(api) > 0]
+    return zip(*list_of_sentence_pairs)
     # for i, sentence in enumerate(list_of_sentences):
     #     clean_up_eng(sentence)
 
@@ -79,10 +80,20 @@ def read_from_file(filename="data.txt", ifcleanup=True):
 
 
 def test():
-    english_desc = ['abc Def', "can't not don't", "aef 43.r0", "arfer49 av9 439 samldf", "что, грешите?"]
+    english_desc = ['abcDef', "can'tnotdon't", "aef43.r0", "arfer49av9439samldf", "что,грешите?"]
+    eng = []
+    for x in english_desc:
+        eng.append([x])
     api_desc = ['System.something', 'System.something.something', 'X.Y.X', 'X.Y', 'ABC']
-    api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
-    clean_up_sentences(list(zip(english_desc, api_desc)), api_dict)
+    api = []
+    for x in api_desc:
+        api.append([x])
+    api_dict = create_dict_on_condition(api, lambda x: x.startswith("System.") or x.count('.') == 1)
+    eng_api_list = list(zip(eng, api))
+    eng, api = clean_up_sentences(eng_api_list, api_dict)
+    print(eng_api_list)
+    print(eng)
+    print(api)
 
 def construct_good_set(data, top=300, skip=10):
     word_cnt = {}
@@ -170,7 +181,8 @@ def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="a
                 english_desc += [cur_eng]
 
     if ifcleanup:
-        clean_up_sentences(list(zip(english_desc, api_desc)))
+        api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
+        english_desc, api_desc = clean_up_sentences(list(zip(english_desc, api_desc)), api_dict)
 
     #make every pair unique
     temp = set(zip(map((lambda x:tuple(x)), english_desc), map((lambda x:tuple(x)), api_desc)))
