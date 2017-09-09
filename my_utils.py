@@ -1,7 +1,7 @@
 # coding=utf-8
 import string
 from random import random
-# import langid
+import langid
 
 import utils
 
@@ -35,11 +35,8 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict):
     for sentence_pair in list_of_sentence_pairs:
         clean_up_eng(sentence_pair[0])
         clean_up_api(sentence_pair[1])
-    # list_of_sentences = [clean_up_eng(sentence) for sentence in list_of_sentences]
     list_of_sentence_pairs[:] = [(eng, api) for (eng, api) in list_of_sentence_pairs if len(eng) > 0 and len(api) > 0]
     return zip(*list_of_sentence_pairs)
-    # for i, sentence in enumerate(list_of_sentences):
-    #     clean_up_eng(sentence)
 
 
 def separate_to_train_and_dev(eng_api_list):
@@ -53,23 +50,6 @@ def separate_to_train_and_dev(eng_api_list):
         else:
             train.append(pair)
     return train, dev
-
-
-def test():
-    english_desc = ['abcDef', "can'tnotdon't", "aef43.r0", "arfer49av9439samldf", "что,грешите?"]
-    eng = []
-    for x in english_desc:
-        eng.append([x])
-    api_desc = ['System.something', 'System.something.something', 'X.Y.X', 'X.Y', 'ABC']
-    api = []
-    for x in api_desc:
-        api.append([x])
-    api_dict = create_dict_on_condition(api, lambda x: x.startswith("System.") or x.count('.') == 1)
-    eng_api_list = list(zip(eng, api))
-    eng, api = clean_up_sentences(eng_api_list, api_dict)
-    print(eng_api_list)
-    print(eng)
-    print(api)
 
 
 def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="api.txt",
@@ -164,7 +144,6 @@ def create_vocab(sentences, vocab_size):
 def write_two_vocabs(eng_vocab, api_vocab, eng_size=10000, api_size=10000, vocab_postfix=''):
     utils.write_lines_to_file('vocab' + str(eng_size) + '_test' + vocab_postfix + '.from', eng_vocab)
     utils.write_lines_to_file('vocab' + str(api_size) + '_test' + vocab_postfix + '.to', api_vocab)
-
 
 if __name__ == "__main__":
     train_eng_file = 'train3.eng'
