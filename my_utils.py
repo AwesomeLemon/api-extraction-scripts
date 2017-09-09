@@ -3,10 +3,13 @@ import string
 import operator
 from random import random
 
-from tensorflow.python.platform import gfile
+# from tensorflow.python.platform import gfile
 
-import tensorflow as tf
-import langid
+# import tensorflow as tf
+# import langid
+
+import utils
+
 
 def create_dict_on_condition(sentence_list, predicate):
     word_set = set()
@@ -16,12 +19,15 @@ def create_dict_on_condition(sentence_list, predicate):
                 word_set.add(word)
     return word_set
 
+
 def clean_up_sentences(list_of_sentence_pairs, api_dict):
     def clean_up_eng(sentence_eng):
-        sentence_eng[:] = [word.lower().translate(str.maketrans('','',string.punctuation)) for word in sentence_eng if len(word) < 20]
+        sentence_eng[:] = [word.lower().translate(str.maketrans('', '', string.punctuation)) for word in sentence_eng if
+                           len(word) < 20]
         sentence_eng[:] = [word for word in sentence_eng if len(word) > 0]
         # for i, word in enumerate(words):
         #     words[i] = word.lower().translate(None, string.punctuation)
+
     def clean_up_api(sentence_api):
         sentence_api[:] = [call for call in sentence_api if call in api_dict]
         sentence_word_boundary = 10
@@ -41,7 +47,6 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict):
     #     clean_up_eng(sentence)
 
 
-
 def separate_to_train_and_dev(eng_api_list):
     total = len(eng_api_list)
     prob_boundary = 10100.0 / float(total)
@@ -53,6 +58,7 @@ def separate_to_train_and_dev(eng_api_list):
         else:
             train.append(pair)
     return train, dev
+
 
 def read_from_file(filename="data.txt", ifcleanup=True):
     english_desc = []
@@ -73,7 +79,7 @@ def read_from_file(filename="data.txt", ifcleanup=True):
                 english_desc += [cur_eng]
 
     if ifcleanup:
-        api_dict = create_dict_on_condition(api_desc, lambda x:x.startswith("System.") or x.count('.') == 1)
+        api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
         clean_up_sentences(list(zip(english_desc, api_desc)), api_dict)
     # clean_up_list_of_lists(api_desc)
     return english_desc, api_desc
@@ -94,6 +100,7 @@ def test():
     print(eng_api_list)
     print(eng)
     print(api)
+
 
 def construct_good_set(data, top=300, skip=10):
     word_cnt = {}
@@ -153,6 +160,7 @@ def refactored_data_to_file(eng_top=10000, eng_skip=5, api_top=10000, api_skip=0
                 f.write(str(word) + " ")
             f.write("\n")
 
+
 def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="api.txt",
                               ifcleanup=True, ifoverwrite=False):
     english_desc = []
@@ -161,16 +169,16 @@ def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="a
         'Required method for Designer support - do not modify  the contents of this method with the code editor.',
         'Clean up any resources being used.',
         'The main entry point for the application.']
-    with open(filename, "r") as f:
+    with open(filename, "r", encoding='utf-8') as f:
         while True:
             line = f.readline().strip()
             if line == '':
                 break
             if line.startswith("*") or line.startswith("/"):
                 continue
-            if langid.classify(line)[0] != 'en':
-                api_line = f.readline() # we won't need it
-                continue
+            # if langid.classify(line)[0] != 'en':
+            #     api_line = f.readline()  # we won't need it
+            #     continue
 
             cur_eng = line.split(" ")
             line = f.readline().strip()
@@ -184,37 +192,32 @@ def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="a
         api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
         english_desc, api_desc = clean_up_sentences(list(zip(english_desc, api_desc)), api_dict)
 
-    #make every pair unique
-    temp = set(zip(map((lambda x:tuple(x)), english_desc), map((lambda x:tuple(x)), api_desc)))
+    # make every pair unique
+    temp = set(zip(map((lambda x: tuple(x)), english_desc), map((lambda x: tuple(x)), api_desc)))
     english_desc, api_desc = zip(*list(temp))
 
-    #no writing to files!
+    # no writing to files!
 
     return english_desc, api_desc
 
 
 def write_all_train_data_to_files(english_desc, api_desc, engfile="eng.txt", apifile="api.txt", ifoverwrite=False):
     def write_train_data_to_file(lines, filepath, file_open_modifier):
-        with open(filepath, file_open_modifier) as f:
+        with open(filepath, file_open_modifier, encoding='utf-8') as f:
             for sentence in lines:
                 f.write(" ".join(sentence) + "\n")
+
     file_open_modifier = 'w' if ifoverwrite else 'a'
     write_train_data_to_file(english_desc, engfile, file_open_modifier)
     write_train_data_to_file(api_desc, apifile, file_open_modifier)
 
 
-def parse_res_files_to_two_files(engfile="eng.txt", apifile="api.txt",
-                                 eng_dev_file="eng_dev.txt", api_dev_file="api_dev.txt",
-                                 res_files=None, res_files_count=2, res_files_first=1):
+def parse_res_files_to_train_and_test(res_files=None, res_files_count=2, res_files_first=1):
     if res_files is None:
-        res_files = ['/tmp/res' + str(i) + '.txt' for i in range(res_files_first, res_files_count + 1)]#['/tmp/res1.txt', '/tmp/res2.txt']
+        res_files = ['/tmp/res' + str(i) + '.txt' for i in
+                     range(res_files_first, res_files_count + 1)]  # ['/tmp/res1.txt', '/tmp/res2.txt']
 
     eng, api = parse_file_to_eng_and_api(filename=res_files[0], ifoverwrite=True)
-    # train, dev = separate_to_train_and_dev(list(zip(eng, api)))
-    # eng_train, api_train = zip(*train)
-    # eng_dev, api_dev = zip(*dev)
-    # write_all_train_data_to_files(eng_train, api_train, engfile, apifile, ifoverwrite=True)
-    # write_all_train_data_to_files(eng_dev, api_dev, eng_dev_file, api_dev_file, ifoverwrite=True)
     for res_file in res_files[1:]:
         print('parsing ' + res_file)
         eng_new, api_new = parse_file_to_eng_and_api(filename=res_file, ifoverwrite=False)
@@ -224,16 +227,15 @@ def parse_res_files_to_two_files(engfile="eng.txt", apifile="api.txt",
     train, dev = separate_to_train_and_dev(list(zip(eng, api)))
     eng_train, api_train = zip(*train)
     eng_dev, api_dev = zip(*dev)
-    write_all_train_data_to_files(eng_train, api_train, engfile, apifile, ifoverwrite=True)
-    write_all_train_data_to_files(eng_dev, api_dev, eng_dev_file, api_dev_file, ifoverwrite=True)
+    return (eng_train, eng_dev), (api_train, api_dev)
 
 
-def create_vocab(input_file, vocab_file, vocab_size):
+def create_vocab(input_file, vocab_size):
     # if gfile.Exists(vocab_file): return
 
-    print("Creating vocabulary %s from data %s" % (vocab_file, input_file))
+    print("Creating vocabulary from data %s" % (input_file))
     vocab = {}
-    with gfile.GFile(input_file, mode="r") as f:
+    with open(input_file, mode="r", encoding='utf-8') as f:
         counter = 0
         for line in f:
             counter += 1
@@ -249,27 +251,29 @@ def create_vocab(input_file, vocab_file, vocab_size):
         vocab_list = sorted(vocab, key=vocab.get, reverse=True)
         if len(vocab_list) > vocab_size:
             vocab_list = vocab_list[:vocab_size]
-        with gfile.GFile(vocab_file, mode="w") as vocab_file:
-            for w in vocab_list:
-                vocab_file.write(w + "\n")
-
-# def test_stuff():
-#     english_desc = ["ab", "cd", "ab", "xy"]
-#     api_desc = ["da", "db", "da", "aa"]
-#     english_desc, api_desc = zip(*list(set(zip(english_desc, api_desc))))
-#     print english_desc
-#     print api_desc
+        return vocab_list
 
 
-def create_two_vocabs(eng='eng.txt', api='api.txt', eng_size=10000, api_size=10000, vocab_postfix = ''):
-    # create_vocab(eng, 'vocab{0}_test.from'.format(str(eng_size)), eng_size)
-    # create_vocab(api, 'vocab{0}_test.to'.format(str(api_size)), api_size)
-    create_vocab(eng, 'vocab' + str(eng_size) + '_test' + vocab_postfix + '.from', eng_size)
-    create_vocab(api, 'vocab' + str(api_size) + '_test' + vocab_postfix + '.to', api_size)
+def write_two_vocabs(eng_vocab, api_vocab, eng_size=10000, api_size=10000, vocab_postfix=''):
+    utils.write_lines_to_file('vocab' + str(eng_size) + '_test' + vocab_postfix + '.from', eng_vocab)
+    utils.write_lines_to_file('vocab' + str(api_size) + '_test' + vocab_postfix + '.to', api_vocab)
+
+
 if __name__ == "__main__":
-    test()
-    #parse_res_files_to_two_files('train3.eng', 'train3.api', 'test3.eng', 'test3.api', res_files_count=21, res_files_first=17)
-    # create_two_vocabs('train2.eng', 'train2.api', vocab_postfix='engonly')
+    train_eng_file = 'train3.eng'
+    train_api_file = 'train3.api'
+    test_eng_file = 'test3.eng'
+    test_api_file = 'test3.api'
+    (eng_train_samples, eng_dev_samples), (api_train_samples, api_dev_samples) = \
+        parse_res_files_to_train_and_test(res_files=['C:\\Users\\Alexander\\Google Диск\\res23.txt'],
+                                          res_files_count=21, res_files_first=17)
+    write_all_train_data_to_files(eng_train_samples, api_train_samples, train_eng_file, train_api_file, ifoverwrite=True)
+    write_all_train_data_to_files(eng_dev_samples, api_dev_samples, test_eng_file, test_api_file, ifoverwrite=True)
+
+    eng_vocab = create_vocab(train_eng_file, 10000)
+    api_vocab = create_vocab(train_api_file, 10000)
+    write_two_vocabs(eng_vocab, api_vocab, vocab_postfix='engonly')
+
 
     # test_stuff()
     # parse_file_write_to_2_files("/tmp/res1.txt","eng_dev.txt", "api_dev.txt")
@@ -277,4 +281,4 @@ if __name__ == "__main__":
     # create_vocab("eng_dev.txt", 'vocab' + str(10000) + '.from', 10000)
     # create_vocab("api_dev.txt", 'vocab' + str(10000) + '.to', 10000)
 
-#4489200 of not unique pairs
+    # 4489200 of not unique pairs
