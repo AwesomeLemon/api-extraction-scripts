@@ -230,28 +230,23 @@ def parse_res_files_to_train_and_test(res_files=None, res_files_count=2, res_fil
     return (eng_train, eng_dev), (api_train, api_dev)
 
 
-def create_vocab(input_file, vocab_size):
-    # if gfile.Exists(vocab_file): return
-
-    print("Creating vocabulary from data %s" % (input_file))
+def create_vocab(sentences, vocab_size):
     vocab = {}
-    with open(input_file, mode="r", encoding='utf-8') as f:
-        counter = 0
-        for line in f:
-            counter += 1
-            if counter % 100000 == 0:
-                print("  processing line %d" % counter)
-            # line = tf.compat.as_bytes(line)
-            tokens = line.strip().split(" ")
-            for w in tokens:
-                if w in vocab:
-                    vocab[w] += 1
-                else:
-                    vocab[w] = 1
-        vocab_list = sorted(vocab, key=vocab.get, reverse=True)
-        if len(vocab_list) > vocab_size:
-            vocab_list = vocab_list[:vocab_size]
-        return vocab_list
+    for sentence in sentences:
+        for w in sentence:
+            if w in vocab:
+                vocab[w] += 1
+            else:
+                vocab[w] = 1
+    vocab_list = sorted(vocab, key=vocab.get, reverse=True)
+    if len(vocab_list) > vocab_size:
+        vocab_list = vocab_list[:vocab_size]
+    return vocab_list
+
+# def create_vocab_from_file(input_file, vocab_size):
+#     print("Creating vocabulary from data %s" % (input_file))
+#     with open(input_file, mode="r", encoding='utf-8') as f:
+#         return create_vocab(f, vocab_size)
 
 
 def write_two_vocabs(eng_vocab, api_vocab, eng_size=10000, api_size=10000, vocab_postfix=''):
@@ -264,14 +259,14 @@ if __name__ == "__main__":
     train_api_file = 'train3.api'
     test_eng_file = 'test3.eng'
     test_api_file = 'test3.api'
-    (eng_train_samples, eng_dev_samples), (api_train_samples, api_dev_samples) = \
+    (eng_train_samples, eng_test_samples), (api_train_samples, api_test_samples) = \
         parse_res_files_to_train_and_test(res_files=['C:\\Users\\Alexander\\Google Диск\\res23.txt'],
                                           res_files_count=21, res_files_first=17)
     write_all_train_data_to_files(eng_train_samples, api_train_samples, train_eng_file, train_api_file, ifoverwrite=True)
-    write_all_train_data_to_files(eng_dev_samples, api_dev_samples, test_eng_file, test_api_file, ifoverwrite=True)
+    write_all_train_data_to_files(eng_test_samples, api_test_samples, test_eng_file, test_api_file, ifoverwrite=True)
 
-    eng_vocab = create_vocab(train_eng_file, 10000)
-    api_vocab = create_vocab(train_api_file, 10000)
+    eng_vocab = create_vocab(eng_train_samples, 10000)
+    api_vocab = create_vocab(api_train_samples, 10000)
     write_two_vocabs(eng_vocab, api_vocab, vocab_postfix='engonly')
 
 
