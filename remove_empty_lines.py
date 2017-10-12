@@ -44,8 +44,9 @@ def remove_empty():
         for a in api:
             f.write(a + "\n")
 
-paths = ["train1.eng", "train1.api", "test1.eng", "test1.api"]
-for path in paths:
-    shorten_file(path)
-# shorten_file("test.api")
-# remove_empty()
+if __name__ == "__main__":
+    paths = ["train1.eng", "train1.api", "test1.eng", "test1.api"]
+    for path in paths:
+        shorten_file(path)
+    # shorten_file("test.api")
+    # remove_empty()

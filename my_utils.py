@@ -3,6 +3,7 @@ import string
 from random import random
 import langid
 
+import remove_empty_lines
 import utils
 
 
@@ -15,7 +16,7 @@ def create_dict_on_condition(sentence_list, predicate):
     return word_set
 
 
-def clean_up_sentences(list_of_sentence_pairs, api_dict):
+def clean_up_sentences(list_of_sentence_pairs, api_dict=None):
     def clean_up_eng(sentence_eng):
         sentence_eng[:] = [word.lower().translate(str.maketrans('', '', string.punctuation)) for word in sentence_eng if
                            len(word) < 20]
@@ -34,42 +35,47 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict):
 
     for sentence_pair in list_of_sentence_pairs:
         clean_up_eng(sentence_pair[0])
-        clean_up_api(sentence_pair[1])
+        if api_dict is not None:
+            clean_up_api(sentence_pair[1])
     list_of_sentence_pairs[:] = [(eng, api) for (eng, api) in list_of_sentence_pairs if len(eng) > 0 and len(api) > 0]
     return zip(*list_of_sentence_pairs)
 
 
 def separate_to_train_and_dev(eng_api_list):
     total = len(eng_api_list)
-    prob_boundary = 10100.0 / float(total)
+    prob_boundary = 20000.0 / float(total)
     dev = []
     train = []
     for pair in eng_api_list:
-        if random() <= prob_boundary:
+        if random() < prob_boundary:
             dev.append(pair)
         else:
             train.append(pair)
     return train, dev
 
 
-def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="api.txt",
-                              ifcleanup=True, ifoverwrite=False):
+def parse_file_to_eng_and_api(filename="data.txt",
+                              ifcleanup=True,
+                              leave_only_system=False):
     english_desc = []
     api_desc = []
-    unwanted_comments = [
-        'Required method for Designer support - do not modify  the contents of this method with the code editor.',
-        'Clean up any resources being used.',
-        'The main entry point for the application.']
+    # unwanted_comments = [
+    #     'Required method for Designer support - do not modify  the contents of this method with the code editor.',
+    #     'Clean up any resources being used.',
+    #     'The main entry point for the application.']
+    designer_comment_start = 'Required method for Designer support'
     with open(filename, "r", encoding='utf-8') as f:
         while True:
             line = f.readline().strip()
             if line == '':
                 break
-            if line.startswith("*") or line.startswith("/"):
+            if line[0] == '*' or line[0] == '/':
                 continue
-            # if langid.classify(line)[0] != 'en':
-            #     api_line = f.readline()  # we won't need it
-            #     continue
+            # if line.startswith("*") or line.startswith("/"):
+            if langid.classify(line)[0] != 'en' or line.startswith(designer_comment_start):
+                api_line = f.readline()  # we won't need it
+                continue
+
 
             cur_eng = line.split(" ")
             line = f.readline().strip()
@@ -80,7 +86,9 @@ def parse_file_to_eng_and_api(filename="data.txt", engfile="eng.txt", apifile="a
                 english_desc += [cur_eng]
 
     if ifcleanup:
-        api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
+        api_dict = None
+        if leave_only_system:
+            api_dict = create_dict_on_condition(api_desc, lambda x: x.startswith("System.") or x.count('.') == 1)
         english_desc, api_desc = clean_up_sentences(list(zip(english_desc, api_desc)), api_dict)
 
     # make every pair unique
@@ -108,20 +116,22 @@ def parse_res_files_to_train_and_test(res_files=None, res_files_count=2, res_fil
         res_files = ['/tmp/res' + str(i) + '.txt' for i in
                      range(res_files_first, res_files_count + 1)]  # ['/tmp/res1.txt', '/tmp/res2.txt']
 
-    eng, api = parse_file_to_eng_and_api(filename=res_files[0], ifoverwrite=True)
+    eng, api = parse_file_to_eng_and_api(filename=res_files[0])
     for res_file in res_files[1:]:
         print('parsing ' + res_file)
-        eng_new, api_new = parse_file_to_eng_and_api(filename=res_file, ifoverwrite=False)
+        eng_new, api_new = parse_file_to_eng_and_api(filename=res_file)
         eng += eng_new
         api += api_new
 
     train, dev = separate_to_train_and_dev(list(zip(eng, api)))
+    # remove_empty_lines.remove_pair_where_one_is_empty(train)
+    # remove_empty_lines.remove_pair_where_one_is_empty(dev)
     eng_train, api_train = zip(*train)
     eng_dev, api_dev = zip(*dev)
     return (eng_train, eng_dev), (api_train, api_dev)
 
 
-def create_vocab(sentences, vocab_size):
+def create_vocab(sentences, vocab_size, skip_first_n_words):
     vocab = {}
     for sentence in sentences:
         for w in sentence:
@@ -131,7 +141,7 @@ def create_vocab(sentences, vocab_size):
                 vocab[w] = 1
     vocab_list = sorted(vocab, key=vocab.get, reverse=True)
     if len(vocab_list) > vocab_size:
-        vocab_list = vocab_list[:vocab_size]
+        vocab_list = vocab_list[skip_first_n_words:vocab_size]
     return vocab_list
 
 
@@ -140,29 +150,57 @@ def create_vocab(sentences, vocab_size):
 #     with open(input_file, mode="r", encoding='utf-8') as f:
 #         return create_vocab(f, vocab_size)
 
+def filter_list_of_lists_by_vocab(list_of_lists, vocab):
+    vocab = set(vocab)
+    temp = [list(sentence) for sentence in list_of_lists]
+    for sentence in temp:
+        sentence[:] = [word for word in sentence if word in vocab]
+    return [sentence for sentence in temp if len(sentence) > 0]
+
+
+def filter_eng_api_by_vocabs(eng, api, vocab_eng, vocab_api):
+    vocab_eng = set(vocab_eng)
+    vocab_api = set(vocab_api)
+    res_e = []
+    res_a = []
+    for (eng_sent, api_sent) in zip(eng, api):
+        e = [word for word in eng_sent if word in vocab_eng]
+        a = [word for word in api_sent if word in vocab_api]
+        if len(e) > 1 and len(a) > 0:
+            res_e.append(e)
+            res_a.append(a)
+    return res_e, res_a
 
 def write_two_vocabs(eng_vocab, api_vocab, eng_size=10000, api_size=10000, vocab_postfix=''):
     utils.write_lines_to_file('vocab' + str(eng_size) + '_test' + vocab_postfix + '.from', eng_vocab)
     utils.write_lines_to_file('vocab' + str(api_size) + '_test' + vocab_postfix + '.to', api_vocab)
 
 if __name__ == "__main__":
-    train_eng_file = 'train3.eng'
-    train_api_file = 'train3.api'
-    test_eng_file = 'test3.eng'
-    test_api_file = 'test3.api'
+    # a = [('ab', 'cd'), ('ef')]
+    train_eng_file = 'train8.eng'
+    train_api_file = 'train8.api'
+    test_eng_file = 'test8.eng'
+    test_api_file = 'test8.api'
     (eng_train_samples, eng_test_samples), (api_train_samples, api_test_samples) = \
-        parse_res_files_to_train_and_test(res_files=['C:\\Users\\Alexander\\Google Диск\\res23.txt'],
-                                          res_files_count=21, res_files_first=17)
+        parse_res_files_to_train_and_test(res_files_count=24)
+
+    eng_vocab_size = 1000
+    eng_vocab = create_vocab(eng_train_samples, eng_vocab_size, 7)
+    api_vocab_size = 1000
+    api_vocab = create_vocab(api_train_samples, api_vocab_size, 0)
+
+    write_two_vocabs(eng_vocab, api_vocab, vocab_postfix='max+dict1000')
+
+    # eng_train_samples = filter_list_of_lists_by_vocab(eng_train_samples, eng_vocab)
+    # eng_test_samples = filter_list_of_lists_by_vocab(eng_test_samples, eng_vocab)
+    # api_train_samples = filter_list_of_lists_by_vocab(api_train_samples, api_vocab)
+    # api_test_samples = filter_list_of_lists_by_vocab(api_test_samples, api_vocab)
+    eng_train_samples, api_train_samples = filter_eng_api_by_vocabs(eng_train_samples, api_train_samples, eng_vocab, api_vocab)
+    eng_test_samples, api_test_samples = filter_eng_api_by_vocabs(eng_test_samples, api_test_samples, eng_vocab, api_vocab)
+
     write_all_train_data_to_files(eng_train_samples, api_train_samples, train_eng_file, train_api_file,
                                   ifoverwrite=True)
     write_all_train_data_to_files(eng_test_samples, api_test_samples, test_eng_file, test_api_file, ifoverwrite=True)
-
-    eng_vocab_size = 10000
-    eng_vocab = create_vocab(eng_train_samples, eng_vocab_size)
-    api_vocab_size = 10000
-    api_vocab = create_vocab(api_train_samples, api_vocab_size)
-
-    write_two_vocabs(eng_vocab, api_vocab, vocab_postfix='engonly')
 
 
     # test_stuff()
