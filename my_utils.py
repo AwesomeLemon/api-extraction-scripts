@@ -59,7 +59,7 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict=None, if_shorten=False, 
 
 def separate_to_train_and_dev(eng_api_list):
     total = len(eng_api_list)
-    test_size = 20000.0
+    test_size = 10000.0
     prob_boundary = test_size / float(total)
     dev = []
     train = []
