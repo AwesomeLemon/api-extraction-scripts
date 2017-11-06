@@ -1,7 +1,8 @@
-import langid as langid
+from langdetect import detect
 from peewee import *
 
-database = SqliteDatabase('D:\DeepApiReps\DeepApi#', **{})
+db_path = 'D:\DeepApiReps\DeepApi#'
+database = SqliteDatabase(db_path, **{})
 
 
 class UnknownField(object):
@@ -70,14 +71,38 @@ class SqliteSequence(BaseModel):
         primary_key = False
 
 
+def parse_database_to_eng_and_api():
+    database.connect()
+    methods = Method.select(Method.first_summary_sentence, Method.api_calls).where(
+        (Method.first_summary_sentence.is_null(False)) & (Method.lang == 'en')).limit(1000)
+    eng_api_with_empties = [(method.first_summary_sentence, method.api_calls) for method in methods]
+    # eng_api_with_empties = [(method.first_summary_sentence, method.api_calls) for method in methods]
+    designer_comment_start = 'Required method for Designer'
+    eng_api = [(eng.split(' '), api.split(' ')) for (eng, api) in eng_api_with_empties if
+               not (len(eng) == 0 or len(api) == 0 or eng.startswith(designer_comment_start))]
+    database.close()
+    return eng_api
+
+
 def store_method_langs():
     database.connect()
-    Method.update(lang = langid.classify(str(Method.first_summary_sentence))[0]).where(Method.first_summary_sentence is not None).execute()
-    Method.update(lang=langid.classify(str(Method.full_comment).strip())[0]).where(Method.comment_is_xml is False).execute()
+    with database.atomic():
+        methods = Method.select().where(Method.first_summary_sentence.is_null(False)).limit(10000).execute()
+        # methods = Method.select().where((Method.id == 171608) | (Method.id == 171609)).execute()
+        for method in methods:
+            # method.lang = langid.classify(str(method.first_summary_sentence))[0]
+            method.lang = detect(str(method.first_summary_sentence))
+            method.save()
+    # Method.update(lang=str(Method.id)).where((Method.id == 171608) | (Method.id == 171609)).execute()
+    # method = Method.select().where(Method.id == 171608).get()
+    # Method.update(lang=Method.first_summary_sentence).where(Method.id == 171608).execute()
+    #171608
+    # Method.update(lang=langid.classify(str(Method.full_comment).strip())[0]).where(Method.comment_is_xml is False).execute()
     database.close()
 
-
-store_method_langs()
-# database.connect()
-# x = Method.select().where(Method.first_summary_sentence is not None and Method.solution_id == 2).get()
-# database.close()
+if __name__ == "__main__":
+    parse_database_to_eng_and_api()
+    # store_method_langs()
+    # database.connect()
+    # x = Method.select().where(Method.first_summary_sentence is not None and Method.solution_id == 2).get()
+    # database.close()
