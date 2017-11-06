@@ -88,21 +88,24 @@ def store_method_langs():
     database.connect()
     with database.atomic():
         methods = Method.select().where(Method.first_summary_sentence.is_null(False)).limit(10000).execute()
-        # methods = Method.select().where((Method.id == 171608) | (Method.id == 171609)).execute()
         for method in methods:
-            # method.lang = langid.classify(str(method.first_summary_sentence))[0]
             method.lang = detect(str(method.first_summary_sentence))
             method.save()
-    # Method.update(lang=str(Method.id)).where((Method.id == 171608) | (Method.id == 171609)).execute()
-    # method = Method.select().where(Method.id == 171608).get()
-    # Method.update(lang=Method.first_summary_sentence).where(Method.id == 171608).execute()
-    #171608
+
+    # with database.atomic():
+    #     methods = Method.select().where(Method.first_summary_sentence.is_null(True)).limit(10000).execute()
+    #     for method in methods:
+    #         try:
+    #             method.lang = detect(str(method.full_comment))
+    #             method.save()
+    #         except:
+    #             pass
     # Method.update(lang=langid.classify(str(Method.full_comment).strip())[0]).where(Method.comment_is_xml is False).execute()
     database.close()
 
 if __name__ == "__main__":
-    parse_database_to_eng_and_api()
-    # store_method_langs()
+    # parse_database_to_eng_and_api()
+    store_method_langs()
     # database.connect()
     # x = Method.select().where(Method.first_summary_sentence is not None and Method.solution_id == 2).get()
     # database.close()
