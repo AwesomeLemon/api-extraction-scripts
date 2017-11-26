@@ -1,7 +1,9 @@
 from langdetect import detect
 from peewee import *
 
-db_path = 'D:\DeepApiReps\DeepApi#'
+import method_name_dataset
+
+db_path = '/media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
 database = SqliteDatabase(db_path, **{})
 
 
@@ -12,6 +14,11 @@ class UnknownField(object):
 class BaseModel(Model):
     class Meta:
         database = database
+
+class RepoFromFiles(BaseModel):
+    url = CharField(db_column='Url', null=True)  # varchar
+    class Meta:
+        db_table = 'RepoFromFiles'
 
 
 class Repo(BaseModel):
@@ -46,7 +53,8 @@ class Method(BaseModel):
     name = CharField(db_column='Name', null=True)  # varchar
     sampled_at = BigIntegerField(db_column='SampledAt', null=True)
     solution_id = ForeignKeyField(Solution, db_column='SolutionId', index=True, null=True)
-    lang = CharField(db_column='lang', null=True)
+    lang = CharField(db_column='Lang', null=True)
+    name_tokenized = CharField(db_column='NameTokenized', null=True)
 
     class Meta:
         db_table = 'Method'
@@ -73,24 +81,45 @@ class SqliteSequence(BaseModel):
 
 def parse_database_to_eng_and_api():
     database.connect()
-    methods = Method.select(Method.first_summary_sentence, Method.api_calls).where(
-        (Method.first_summary_sentence.is_null(False)) & (Method.lang == 'en')).limit(1000)
-    eng_api_with_empties = [(method.first_summary_sentence, method.api_calls) for method in methods]
+    bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de'}
+    methods = Method.select(Method.first_summary_sentence, Method.api_calls, Method.lang)
+        # .where((Method.first_summary_sentence.is_null(False))  &
+        # (Method.lang != 'zh-cn') & (Method.lang != 'ja')
+        # & (Method.lang != 'ru') & (Method.lang != 'pl') & (Method.lang != 'de'))#.limit(1000)
+    eng_api = [(method.first_summary_sentence, method.api_calls) for method in methods
+               if method.first_summary_sentence is not None and method.lang not in bad_langs]
     # eng_api_with_empties = [(method.first_summary_sentence, method.api_calls) for method in methods]
-    designer_comment_start = 'Required method for Designer'
-    eng_api = [(eng.split(' '), api.split(' ')) for (eng, api) in eng_api_with_empties if
-               not (len(eng) == 0 or len(api) == 0 or eng.startswith(designer_comment_start))]
     database.close()
+    print('Extracted from database: '+ str(len(eng_api)))
     return eng_api
 
+def parse_database_to_names_and_api():
+    database.connect()
+    bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de'}
+    methods = Method.select(Method.name_tokenized, Method.api_calls, Method.lang)
+    eng_api = [(method.name_tokenized, method.api_calls) for method in methods
+               if method.name_tokenized is not None and method.lang not in bad_langs]
+    database.close()
+    print('Extracted names from database: '+ str(len(eng_api)))
+    return eng_api
+
+def store_repos(repo_urls):
+    database.connect()
+    for repo_url in repo_urls:
+        RepoFromFiles.create(url=repo_url)
+    database.close()
 
 def store_method_langs():
     database.connect()
     with database.atomic():
-        methods = Method.select().where(Method.first_summary_sentence.is_null(False)).limit(10000).execute()
+        # methods = Method.select().where(Method.first_summary_sentence.is_null(False)).limit(10000).execute()
+        methods = Method.select().where(Method.first_summary_sentence.is_null(False)).execute()
         for method in methods:
-            method.lang = detect(str(method.first_summary_sentence))
-            method.save()
+            try:
+                method.lang = detect(str(method.first_summary_sentence))
+                method.save()
+            except:
+                pass
 
     # with database.atomic():
     #     methods = Method.select().where(Method.first_summary_sentence.is_null(True)).limit(10000).execute()
@@ -103,9 +132,26 @@ def store_method_langs():
     # Method.update(lang=langid.classify(str(Method.full_comment).strip())[0]).where(Method.comment_is_xml is False).execute()
     database.close()
 
+def store_tokenized_names():
+    database.connect()
+    for i in range(1100):
+        with database.atomic():
+            methods = Method.select().where(Method.name_tokenized.is_null(True)).limit(10000).execute()
+            for method in methods:
+                try:
+                    tokens = method_name_dataset.name_to_tokens(method.name)
+                    if tokens is None:
+                        continue
+                    method.name_tokenized = ' '.join(tokens)
+                    method.save()
+                except:
+                    pass
+    database.close()
+
 if __name__ == "__main__":
+    store_tokenized_names()
     # parse_database_to_eng_and_api()
-    store_method_langs()
+    # store_method_langs()
     # database.connect()
     # x = Method.select().where(Method.first_summary_sentence is not None and Method.solution_id == 2).get()
     # database.close()
