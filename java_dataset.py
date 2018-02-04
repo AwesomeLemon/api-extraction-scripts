@@ -1,14 +1,14 @@
 import re
+import sqlite3
 
 
 def extract_cleaned_first_sentence(javadoc):
-    javadoc = javadoc.decode("utf-8")
+    # javadoc = javadoc.decode("utf-8")
     sentence = first_sentence_from_javadoc(javadoc)
     sentence = clean_javadoc_sentence(sentence)
     if len(sentence) > 0 and sentence[0] == '@':
         return ''
     return sentence
-
 
 def first_sentence_from_javadoc(javadoc):
     start_1_sentence = javadoc.find('*')
@@ -60,7 +60,24 @@ def clean_javadoc_sentence(javadoc):
     return javadoc
 
 
+def overwrite_bad_encoded_comments():
+    db_path = 'D:\YandexDisk\DeepApiJava.sqlite'#'/media/jet/HDD/DeepApiJava.sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
+    database = sqlite3.connect(db_path)
+    database.text_factory = bytes
+    cursor = database.cursor()
+    cursor.execute('''SELECT id, comment from Method''')
+    methods = cursor.fetchall()
+    for method in methods:
+        try:
+            print(method[1].decode('utf-8'))
+        except UnicodeDecodeError:
+            a = 3
+            cursor.execute('''UPDATE Method set comment = 'OVERRIDE' where id = ?''',
+                           (method[0],))
+            database.commit()
+
 if __name__ == "__main__":
+    overwrite_bad_encoded_comments()
     # brack_test = 'smth ((abc) def) other (ghi) another'
     # print(remove_stuff_in_brackets(brack_test, '(', ')'))
     test = '''
