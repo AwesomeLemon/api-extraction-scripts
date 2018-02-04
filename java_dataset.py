@@ -2,6 +2,7 @@ import re
 
 
 def extract_cleaned_first_sentence(javadoc):
+    javadoc = javadoc.decode("utf-8")
     sentence = first_sentence_from_javadoc(javadoc)
     sentence = clean_javadoc_sentence(sentence)
     if len(sentence) > 0 and sentence[0] == '@':
@@ -14,9 +15,7 @@ def first_sentence_from_javadoc(javadoc):
     if start_1_sentence == -1:
         start_1_sentence = 0
     else:
-        # assume that there's also a space after a string
-        assert javadoc[start_1_sentence + 1] == ' '
-        start_1_sentence += 2
+        start_1_sentence += 1 # don't need '*'
     end_1_sentence = javadoc.find('.', start_1_sentence)
     if end_1_sentence == -1:
         end_1_sentence = javadoc.find('\n', start_1_sentence)
@@ -35,16 +34,20 @@ def clean_javadoc_sentence(javadoc):
     def remove_stuff_in_brackets(input, lbracket, rbracket):
         output = ''
         lstack = []
-        for i, c in enumerate(input):
-            if c == lbracket:
-                lstack.append(i)
-                continue
-            if c == rbracket:
-                l_ind = lstack.pop()
-                output += output[l_ind:i]
-                continue
-            if len(lstack) == 0:
-                output += c
+        try:
+            for i, c in enumerate(input):
+                if c == lbracket:
+                    lstack.append(i)
+                    continue
+                if c == rbracket:
+                    if len(lstack) > 0:
+                        l_ind = lstack.pop()
+                        output += output[l_ind:i]
+                        continue
+                if len(lstack) == 0:
+                    output += c
+        except IndexError as e:
+            a = e
         return output
 
     javadoc = remove_asterisks(javadoc)
