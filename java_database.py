@@ -7,7 +7,7 @@ from peewee import *
 import java_dataset
 import method_name_dataset
 
-db_path = 'D:\YandexDisk\DeepApiJava.sqlite'#'/media/jet/HDD/DeepApiJava.sqlite'  # '/media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
+db_path = '/media/jet/HDD/DeepApiJava (1).sqlite'  # '/media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
 database = SqliteDatabase(db_path, **{})
 
 
@@ -72,10 +72,50 @@ class SqliteSequence(BaseModel):
         primary_key = False
 
 
+def parse_database_to_eng_and_api():
+    database.connect()
+    # bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de'}
+    methods = Method.select(Method.first_sentence, Method.calls)
+    eng_api = [(method.first_sentence, method.calls) for method in methods
+               if method.first_sentence is not None]
+    database.close()
+    print('Extracted from database: ' + str(len(eng_api)))
+    return eng_api
+
+
+def insert_repos(repo_file):
+    def get_next_repo_from_file(f):
+        cloneUrl = f.readline().strip()
+        if cloneUrl == '':
+            return None
+        full_name = f.readline()
+        url = f.readline()
+        stars = int(f.readline())
+        watchers = int(f.readline())
+        forks = int(f.readline())
+        return Repo.create(forks=forks, stars=stars, url=cloneUrl, watchers=watchers)
+
+    database.connect()
+    i = 0
+    with database.atomic():
+        with open(repo_file) as f:
+            condition = True
+            while condition:
+                repo = get_next_repo_from_file(f)
+                if repo is None:
+                    break
+                repo.save()
+                condition = f.readline() is not None
+                print(i)
+                i += 1
+
+    database.commit()
+
+
 def store_first_sentences():
     database.connect()
 
-    for i in range(110):
+    for i in range(1500):
         with database.atomic():
             methods = None
             while methods is None:
@@ -99,6 +139,8 @@ def store_first_sentences():
 
 
 if __name__ == "__main__":
+    # insert_repos('/home/jet/java_reps8_17stars_gt1.txt')
+    # insert_repos('/home/jet/java_reps_test.txt')
     store_first_sentences()
     # store_tokenized_names()
     # parse_database_to_eng_and_api()
