@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import traceback
 
 
 def extract_cleaned_first_sentence(javadoc):
@@ -10,12 +11,13 @@ def extract_cleaned_first_sentence(javadoc):
         return ''
     return sentence
 
+
 def first_sentence_from_javadoc(javadoc):
     start_1_sentence = javadoc.find('*')
     if start_1_sentence == -1:
         start_1_sentence = 0
     else:
-        start_1_sentence += 1 # don't need '*'
+        start_1_sentence += 1  # don't need '*'
     end_1_sentence = javadoc.find('.', start_1_sentence)
     if end_1_sentence == -1:
         end_1_sentence = javadoc.find('\n', start_1_sentence)
@@ -31,25 +33,6 @@ def clean_javadoc_sentence(javadoc):
     def remove_asterisks(javadoc):
         return re.sub('\r?\n( )*\*', '', javadoc)
 
-    def remove_stuff_in_brackets(input, lbracket, rbracket):
-        output = ''
-        lstack = []
-        try:
-            for i, c in enumerate(input):
-                if c == lbracket:
-                    lstack.append(i)
-                    continue
-                if c == rbracket:
-                    if len(lstack) > 0:
-                        l_ind = lstack.pop()
-                        output += output[l_ind:i]
-                        continue
-                if len(lstack) == 0:
-                    output += c
-        except IndexError as e:
-            a = e
-        return output
-
     javadoc = remove_asterisks(javadoc)
     javadoc = remove_stuff_in_brackets(javadoc, '(', ')')
     javadoc = remove_stuff_in_brackets(javadoc, '[', ']')
@@ -60,21 +43,43 @@ def clean_javadoc_sentence(javadoc):
     return javadoc
 
 
+def remove_stuff_in_brackets(input, lbracket, rbracket):
+    output = ''
+    lstack = []
+    try:
+        for i, c in enumerate(input):
+            if c == lbracket:
+                lstack.append(i)
+                continue
+            if c == rbracket:
+                if len(lstack) > 0:
+                    l_ind = lstack.pop()
+                    output += output[l_ind:i]
+                    continue
+            if len(lstack) == 0:
+                output += c
+    except IndexError as e:
+        traceback.print_exc()
+    return output
+
+
 def overwrite_bad_encoded_comments():
-    db_path = 'D:\YandexDisk\DeepApiJava.sqlite'#'/media/jet/HDD/DeepApiJava.sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
+    db_path = '/media/jet/HDD/DeepApiJava (1).sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
     database = sqlite3.connect(db_path)
     database.text_factory = bytes
     cursor = database.cursor()
-    cursor.execute('''SELECT id, comment from Method''')
+    cursor.execute('''SELECT id, comment FROM Method''')
     methods = cursor.fetchall()
     for method in methods:
         try:
-            print(method[1].decode('utf-8'))
+            method[1].decode('utf-8')
         except UnicodeDecodeError:
             a = 3
-            cursor.execute('''UPDATE Method set comment = 'OVERRIDE' where id = ?''',
+            cursor.execute('''UPDATE Method SET comment = 'OVERRIDE' WHERE id = ?''',
                            (method[0],))
             database.commit()
+    database.commit()
+
 
 if __name__ == "__main__":
     overwrite_bad_encoded_comments()

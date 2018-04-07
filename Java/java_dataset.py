@@ -6,11 +6,11 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.stem import PorterStemmer
 from langdetect import detect
 
-import java_database
-import java_dataset
-import remove_empty_lines
-import utils
-from java_database import parse_database_to_eng_and_api
+import Java.java_database
+import Java.java_dataset_utils as java_dataset_utils
+import CSharp.remove_empty_lines
+import CSharp.utils as utils
+from Java.java_database import parse_database_to_eng_and_api
 
 
 def create_dict_on_condition(sentence_list, predicate):
@@ -77,7 +77,7 @@ def clean_up_sentences(list_of_sentence_pairs, api_dict=None, if_shorten=False, 
     for sentence_pair in list_of_sentence_pairs:
         eng = sentence_pair[0]
         cleaned_eng = clean_up_eng(eng)
-        api = java_dataset.remove_stuff_in_brackets(sentence_pair[1], '<', '>')
+        api = java_dataset_utils.remove_stuff_in_brackets(sentence_pair[1], '<', '>')
         api = api.split(' ')
         # api = clean_api_global_namespace(api)
         if api_dict is not None:

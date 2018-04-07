@@ -4,8 +4,7 @@ import traceback
 from langdetect import detect
 from peewee import *
 
-import java_dataset
-import method_name_dataset
+import Java.java_dataset_utils as java_dataset_utils
 
 db_path = '/media/jet/HDD/DeepApiJava (1).sqlite'  # '/media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
 database = SqliteDatabase(db_path, **{})
@@ -126,7 +125,7 @@ def store_first_sentences():
             try:
                 for method in methods:
                     try:
-                        fst_sentence = java_dataset.extract_cleaned_first_sentence(method.comment)
+                        fst_sentence = java_dataset_utils.extract_cleaned_first_sentence(method.comment)
                         method.first_sentence = fst_sentence
                         method.save()
                     except:

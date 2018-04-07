@@ -10,7 +10,7 @@ import time
 
 # logging.basicConfig(level=logging.DEBUG)
 
-db_path = '/media/jet/HDD/DeepApiJava.sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
+db_path = '/media/jet/HDD/DeepApiJava (1).sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
 
 def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
     def extract_name_and_owner_from_url(url):
@@ -20,7 +20,7 @@ def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
         return ownerNameAndDotGit[:len(ownerNameAndDotGit) - 4]
 
     # database.pragma('busy_timeout', 60000)
-    database = sqlite3.connect(db_path, 30000000)
+    database = sqlite3.connect(db_path)#, 30000000)
 
     cursor = database.cursor()
     cursor.execute('''SELECT id, url from Repo where ProcessedTime ISNULL ''')
@@ -35,7 +35,8 @@ def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
             shutil.rmtree(rep_path, ignore_errors=True)
         try:
             git.Repo().clone_from(cur_url, rep_path, depth=1)
-        except (git.exc.GitCommandError, UnicodeDecodeError):
+        except (git.exc.GitCommandError, UnicodeDecodeError, UnicodeEncodeError):
+            traceback.print_exc()
             cursor.execute('''UPDATE Repo set ProcessedTime = 0 where Id = ?''',
                            (repo[0],))
             database.commit()
@@ -44,7 +45,7 @@ def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
         cursor.execute('''UPDATE Repo set ProcessedTime = ? where Id = ?''',
                        (int(time.time()), repo[0]))
         database.commit()
-        # time.sleep(3)
+        # time.sleep(1.2)
 
     database.close()
 
