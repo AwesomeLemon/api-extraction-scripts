@@ -1,10 +1,9 @@
 import re
 import sqlite3
 import traceback
-
+from Java.java_database import db_path
 
 def extract_cleaned_first_sentence(javadoc):
-    # javadoc = javadoc.decode("utf-8")
     sentence = first_sentence_from_javadoc(javadoc)
     sentence = clean_javadoc_sentence(sentence)
     if len(sentence) > 0 and sentence[0] == '@':
@@ -64,7 +63,6 @@ def remove_stuff_in_brackets(input, lbracket, rbracket):
 
 
 def overwrite_bad_encoded_comments():
-    db_path = '/media/jet/HDD/DeepApiJava (1).sqlite'  # /media/jet/HDD/hubic/DeepApi# (4)'#'D:\DeepApiReps\DeepApi#'
     database = sqlite3.connect(db_path)
     database.text_factory = bytes
     cursor = database.cursor()
@@ -74,15 +72,30 @@ def overwrite_bad_encoded_comments():
         try:
             method[1].decode('utf-8')
         except UnicodeDecodeError:
-            a = 3
             cursor.execute('''UPDATE Method SET comment = 'OVERRIDE' WHERE id = ?''',
+                           (method[0],))
+            database.commit()
+    database.commit()
+
+def overwrite_bad_encoded_calls():
+    database = sqlite3.connect(db_path)
+    database.text_factory = bytes
+    cursor = database.cursor()
+    cursor.execute('''SELECT id, calls FROM Method''')
+    methods = cursor.fetchall()
+    for method in methods:
+        try:
+            method[1].decode('utf-8')
+        except UnicodeDecodeError:
+            cursor.execute('''UPDATE Method SET calls = 'OVERRIDE' WHERE id = ?''',
                            (method[0],))
             database.commit()
     database.commit()
 
 
 if __name__ == "__main__":
-    overwrite_bad_encoded_comments()
+    # overwrite_bad_encoded_comments()
+    overwrite_bad_encoded_calls()
     # brack_test = 'smth ((abc) def) other (ghi) another'
     # print(remove_stuff_in_brackets(brack_test, '(', ')'))
     test = '''

@@ -71,14 +71,45 @@ class SqliteSequence(BaseModel):
         primary_key = False
 
 
-def parse_database_to_eng_and_api():
+def parse_database_to_eng_and_api(filter_langs=True):
     database.connect()
-    # bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de'}
-    methods = Method.select(Method.first_sentence, Method.calls)
-    eng_api = [(method.first_sentence, method.calls) for method in methods
-               if method.first_sentence is not None]
+    bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de', 'ko'}
+    if filter_langs:
+        methods = Method.select(Method.first_sentence, Method.calls, Method.lang).where((Method.lang != '-') &
+         (Method.lang != 'zh-cn') & (Method.lang != 'ja') & (Method.lang != 'ko') & (Method.lang != 'ru'))
+
+        eng_api = [(method.first_sentence, method.calls) for method in methods
+                   if method.first_sentence is not None and method.lang not in bad_langs]
+    else:
+        methods = Method.select(Method.first_sentence, Method.calls)
+        eng_api = [(method.first_sentence, method.calls) for method in methods
+                   if method.first_sentence is not None and method.first_sentence != '']
     database.close()
-    print('Extracted from database: ' + str(len(eng_api)))
+    print('Extracted from database: '+ str(len(eng_api)))
+    return eng_api
+
+
+def parse_database_to_eng_and_api_reps_many_stars(filter_langs=True):
+    database.connect()
+    bad_langs = {'zh-cn', 'ja', 'ru', 'pl', 'de', 'ko'}
+    if filter_langs:
+        methods = Method.select(Method.first_sentence, Method.calls, Method.lang)\
+            .join(Solution)\
+            .join(Repo)\
+            .where((Repo.stars > 1) & (Method.lang != '-') & (Method.lang != 'zh-cn') & (Method.lang != 'ja')
+                   & (Method.lang != 'ko') & (Method.lang != 'ru'))
+
+        eng_api = [(method.first_sentence, method.calls) for method in methods
+                   if method.first_sentence is not None and method.lang not in bad_langs]
+    else:
+        methods = Method.select(Method.first_sentence, Method.calls, Method.lang)\
+            .join(Solution)\
+            .join(Repo)\
+            .where((Repo.stars > 1) & (Method.lang != '-'))
+        eng_api = [(method.first_sentence, method.calls) for method in methods
+                   if method.first_sentence is not None]
+    database.close()
+    print('Extracted from database: '+ str(len(eng_api)))
     return eng_api
 
 
@@ -114,16 +145,21 @@ def insert_repos(repo_file):
 def store_first_sentences():
     database.connect()
 
-    for i in range(1500):
+    transaction_limit = 100000
+    methods_count = 21000000
+    transcation_count = int(methods_count / transaction_limit) + 1
+    for i in range(transcation_count):
         with database.atomic():
             methods = None
             while methods is None:
                 try:
-                    methods = Method.select().where(Method.first_sentence.is_null(True)).limit(10000).execute()
+                    methods = Method.select().where((Method.first_sentence.is_null(True)) &
+                                                    (Method.id > transaction_limit * i)).limit(transaction_limit).execute()
                 except sqlite3.OperationalError:
                     print('fail1')
             try:
                 for method in methods:
+                    print(method.id)
                     try:
                         fst_sentence = java_dataset_utils.extract_cleaned_first_sentence(method.comment)
                         method.first_sentence = fst_sentence
@@ -134,16 +170,34 @@ def store_first_sentences():
                 print('fail2')
 
         print(i)
-    database.close()
+
+def store_first_sentence_langs():
+    database.connect()
+
+    transaction_limit = 100000
+    methods_count = 11000000
+    transcation_count = int(methods_count / transaction_limit) + 1
+    for i in range(transcation_count):
+        with database.atomic():
+            # methods = Method.select().where(Method.first_sentence.is_null(False)& Method.lang.is_null(True)).limit(10000).execute()
+            methods = Method.select().where(Method.first_sentence.is_null(False) & Method.lang.is_null(True)).limit(transaction_limit).execute()
+            for method in methods:
+                try:
+                    method.lang = detect(method.first_sentence)
+                except:
+                    method.lang = '-'
+                method.save()
+        print(i)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+    # parse_database_to_eng_and_api_reps_many_stars(False)
     # insert_repos('/home/jet/java_reps8_17stars_gt1.txt')
     # insert_repos('/home/jet/java_reps_test.txt')
-    store_first_sentences()
+    # store_first_sentences()
     # store_tokenized_names()
     # parse_database_to_eng_and_api()
-    # store_method_langs()
+    # store_method_langs2()
     # database.connect()
     # x = Method.select().where(Method.first_summary_sentence is not None and Method.solution_id == 2).get()
     # database.close()

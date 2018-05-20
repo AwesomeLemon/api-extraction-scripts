@@ -19,13 +19,11 @@ def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
         ownerNameAndDotGit = url[secondToLastSlash + 1:]
         return ownerNameAndDotGit[:len(ownerNameAndDotGit) - 4]
 
-    # database.pragma('busy_timeout', 60000)
-    database = sqlite3.connect(db_path)#, 30000000)
+    database = sqlite3.connect(db_path)
 
     cursor = database.cursor()
     cursor.execute('''SELECT id, url from Repo where ProcessedTime ISNULL ''')
     repos = cursor.fetchall()
-    # repos = Repo.select(Repo.id, Repo.url).where(Repo.processed_time.is_null(True))
     for repo in repos:
         print(repo[1])
         cur_url = repo[1]
@@ -45,13 +43,11 @@ def download_reps(path_for_clone='/media/jet/HDD/DeepApiJava/'):
         cursor.execute('''UPDATE Repo set ProcessedTime = ? where Id = ?''',
                        (int(time.time()), repo[0]))
         database.commit()
-        # time.sleep(1.2)
 
     database.close()
 
 
 if __name__ == "__main__":
-    # download_reps()
     while True:
         try:
             download_reps()
